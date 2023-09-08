@@ -5,7 +5,7 @@ class Graph:
     def __init__(self) -> None:
         with open("hypermarket.txt") as f:
             self.map = [[int(num) for num in line.split(" ")] for line in f]
-            self.graph = self.__build_graph()
+            self.graph, self.coords = self.__build_graph()
 
     def __build_graph(self):
         coords = {}
@@ -14,7 +14,6 @@ class Graph:
                 coords[point] = (i, j)
         coords[0] = coords[-1]
         del coords[-1]
-        print(coords)
         num_of_points = len(coords)
         matrix = [[0] * num_of_points for i in range(num_of_points)]
         for num in range(len(matrix)):
@@ -24,11 +23,7 @@ class Graph:
                 )
                 if num == key:
                     matrix[num][key] = math.inf
-        for row in matrix:
-            for element in row:
-                print(element, end=" ")
-            print()
-        return matrix
+        return matrix, coords
 
     def __find_min_distance_in_matrix(self, start, goods):
         min_distance = math.inf
@@ -39,18 +34,19 @@ class Graph:
                 num_of_1st_good = good
         return num_of_1st_good
 
-    def dijkstra(self, real_goods: list, recommendations):
+    def dijkstra(self, real_goods: list, recommendations: list):
         way = []
         way.append(self.__find_min_distance_in_matrix(0, real_goods))
         real_goods.pop(real_goods.index(way[0]))
         all_goods = real_goods + recommendations
-        print(all_goods)
         while len(all_goods) > 0:
             way.append(self.__find_min_distance_in_matrix(way[-1], all_goods))
             all_goods.pop(all_goods.index(way[-1]))
-        return [*way, 1]
+        way =  [-1, *way]
+        return way[::-1]
 
 
 if __name__ == "__main__":
     graph = Graph()
+    print(graph.coords)
     print(graph.dijkstra([12, 8], [11, 5]))

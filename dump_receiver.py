@@ -14,7 +14,7 @@ async def receive_data():
         print("c")
         while True:
             data = await websocket.recv()
-            print(f"Пoлyчeны дaнныe: {data}")
+            print(data)
 
 
 asyncio.get_event_loop().run_until_complete(receive_data())
