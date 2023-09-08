@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
 
 
-class Recommendator(ABC):
+class Recommender(ABC):
     @abstractmethod
-    async def predict(self, real_goods:list):
+    async def predict(self, real_goods: list):
         """
 
-        :param frames:
-        :param destination_coords:
+        :param real_goods:
         :return:
         """
         raise NotImplementedError("Abstract class call!")

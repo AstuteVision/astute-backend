@@ -42,7 +42,7 @@ class Graph:
         while len(all_goods) > 0:
             way.append(self.__find_min_distance_in_matrix(way[-1], all_goods))
             all_goods.pop(all_goods.index(way[-1]))
-        way =  [-1, *way]
+        way = [-1, *way]
         return way[::-1]
 
 

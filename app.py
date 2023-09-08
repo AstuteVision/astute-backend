@@ -1,3 +1,5 @@
+import asyncio
+import json
 import uuid
 
 import cv2
@@ -10,7 +12,6 @@ from graph import Graph
 import json
 import asyncio
 
-
 app = FastAPI()
 
 connected_clients = {}
@@ -18,10 +19,11 @@ connected_clients = {}
 CONST_cam_ips = "consts.txt"
 
 
-#NEAR_REAL content: Полное сообщение товара "рядом с вами сыр"
-#NEAR_RECOMMENDED content: Полное сообщение товара "вы дошли до сыр"
-#DIRECTION: число от 1 до 360
-#json: {type: str, content: str}
+# NEAR_REAL content: Пoлнoe coo6щeниe тoвapa "pядoм c вaми cыp"
+# NEAR_RECOMMENDED content: Пoлнoe coo6щeниe тoвapa "вы дoшли дo cыp"
+# DIRECTION: чиcлo oт 1 дo 360
+# json: {type: str, content: str}
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

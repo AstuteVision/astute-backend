@@ -1,6 +1,3 @@
-from random import randint
-from time import sleep
-
 from .base import Tracker
 
 
