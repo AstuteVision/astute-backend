@@ -4,6 +4,7 @@ import cv2
 import uvicorn
 from fastapi import FastAPI, WebSocket
 from tracker.dummy import DummyTracker
+from tracker.yolo import YoloTracker
 from recommendator.dummy import DummyRecommendator
 from graph import Graph
 import json
@@ -30,10 +31,11 @@ async def websocket_endpoint(websocket: WebSocket):
     print(client_id)
     connected_clients[client_id] = websocket
     # fixme destination_zone_id
-    tracker = DummyTracker()
+    tracker = YoloTracker()
     recommendator = DummyRecommendator()
     graph = Graph()
-    real_goods = [12, 8]
+    goods = parse_goods()
+    real_goods = [3, 5]
     recommendations = recommendator.predict(real_goods)
     way = graph.dijkstra(real_goods, recommendations)
     print(way)
@@ -47,16 +49,20 @@ async def websocket_endpoint(websocket: WebSocket):
             i += 1
             frames = get_frames(urls)
             direction, man_coordinate = tracker.predict(frames, destination_coords=destination_coords)
-            print(direction, man_coordinate, graph.coords[destination])
+            if i==20:
+                await send_message(client_id, json.dumps({"type": "NEAR_RECOMMENDED", "content": f"Рядом с Вами сыр"}))
             if (man_coordinate==graph.coords[destination]):
                 if destination in real_goods:
-                    await send_message(client_id, json.dumps({"type": "NEAR_REAL", "content": "вы дошли до сыр"}))
+                    print(f"NEAR_REAL {goods[str(destination)]}")
+                    await send_message(client_id, json.dumps({"type": "NEAR_REAL", "content": f"Вы дошли до {goods[str(destination)]}"}))
                 if destination in recommendations:
-                    await send_message(client_id, json.dumps({"type": "NEAR_RECOMMENDED", "content": "рядом с вами сыр"}))
+                    print(f"NEAR_RECOMMENDED {goods[str(destination)]}")
+                    await send_message(client_id, json.dumps({"type": "NEAR_RECOMMENDED", "content": f"Рядом с Вами {goods[str(destination)]}"}))
                 destination_index+=1
                 destination = way[destination_index]
             if direction:
                 # Detect anomalies and notify clients
+                print(str(direction))
                 await send_message(client_id, json.dumps({"type": "DIRECTION", "content": str(direction)}))
     except Exception as e:
         print(e)
@@ -67,6 +73,15 @@ async def send_message(client_id: str, message: str):
     websocket = connected_clients.get(client_id)
     if websocket:
         await websocket.send_text(message)
+
+def parse_goods():
+    goods = {}
+    with open("goods.txt", encoding="utf-8") as f:
+        for line in f:
+            s = line.split()
+            goods[s[0]] = s[1]
+    print(goods)
+    return goods
 
 
 def get_id():
@@ -79,7 +94,7 @@ def register():
     return {"id": client_id}
 
 
-async def get_frames(urls: list[str]):
+def get_frames(urls: list[str]):
     frames = []
     for url in urls:
         frames.append(read_video_frame(url))
@@ -105,4 +120,4 @@ def get_urls() -> list[str]:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

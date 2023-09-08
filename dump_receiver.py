@@ -11,7 +11,6 @@ async def receive_data():
     print(client_id)
     headers = {"client-id": client_id}
     async with websockets.connect("ws://localhost:8000/ws", extra_headers=headers) as websocket:
-        print("c")
         while True:
             data = await websocket.recv()
             print(data)

@@ -3,7 +3,7 @@ import math
 
 class Graph:
     def __init__(self) -> None:
-        with open("hypermarket.txt") as f:
+        with open("room.txt", encoding="utf-8") as f:
             self.map = [[int(num) for num in line.split(" ")] for line in f]
             self.graph, self.coords = self.__build_graph()
 
@@ -49,4 +49,4 @@ class Graph:
 if __name__ == "__main__":
     graph = Graph()
     print(graph.coords)
-    print(graph.dijkstra([12, 8], [11, 5]))
+    print(graph.dijkstra([3, 5], [2, 4]))
