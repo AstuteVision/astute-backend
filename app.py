@@ -1,14 +1,14 @@
+import asyncio
+import json
 import uuid
 
 import cv2
 import uvicorn
 from fastapi import FastAPI, WebSocket
-from tracker.dummy import DummyTracker
-from recommendator.dummy import DummyRecommendator
-from graph import Graph
-import json
-import asyncio
 
+from graph import Graph
+from recommender.dummy import DummyRecommender
+from tracker.dummy import DummyTracker
 
 app = FastAPI()
 
@@ -17,10 +17,11 @@ connected_clients = {}
 CONST_cam_ips = "consts.txt"
 
 
-#NEAR_REAL content: Полное сообщение товара "рядом с вами сыр"
-#NEAR_RECOMMENDED content: Полное сообщение товара "вы дошли до сыр"
-#DIRECTION: число от 1 до 360
-#json: {type: str, content: str}
+# NEAR_REAL content: Пoлнoe coo6щeниe тoвapa "pядoм c вaми cыp"
+# NEAR_RECOMMENDED content: Пoлнoe coo6щeниe тoвapa "вы дoшли дo cыp"
+# DIRECTION: чиcлo oт 1 дo 360
+# json: {type: str, content: str}
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -31,10 +32,10 @@ async def websocket_endpoint(websocket: WebSocket):
     connected_clients[client_id] = websocket
     # fixme destination_zone_id
     tracker = DummyTracker()
-    recommendator = DummyRecommendator()
+    recommender = DummyRecommender()
     graph = Graph()
     real_goods = [12, 8]
-    recommendations = recommendator.predict(real_goods)
+    recommendations = recommender.predict(real_goods)
     way = graph.dijkstra(real_goods, recommendations)
     print(way)
     destination_index = 0
@@ -48,12 +49,14 @@ async def websocket_endpoint(websocket: WebSocket):
             frames = get_frames(urls)
             direction, man_coordinate = tracker.predict(frames, destination_coords=destination_coords)
             print(direction, man_coordinate, graph.coords[destination])
-            if (man_coordinate==graph.coords[destination]):
+            if man_coordinate == graph.coords[destination]:
                 if destination in real_goods:
-                    await send_message(client_id, json.dumps({"type": "NEAR_REAL", "content": "вы дошли до сыр"}))
+                    await send_message(client_id, json.dumps({"type": "NEAR_REAL", "content": "вы дoшли дo cыp"}))
                 if destination in recommendations:
-                    await send_message(client_id, json.dumps({"type": "NEAR_RECOMMENDED", "content": "рядом с вами сыр"}))
-                destination_index+=1
+                    await send_message(
+                        client_id, json.dumps({"type": "NEAR_RECOMMENDED", "content": "pядoм c вaми cыp"})
+                    )
+                destination_index += 1
                 destination = way[destination_index]
             if direction:
                 # Detect anomalies and notify clients
