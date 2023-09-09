@@ -11,7 +11,7 @@ logger = getLogger(__name__)
 
 
 class YoloTracker(Tracker):
-    def __init__(self, path_to_zone_annotations: str = "zones.json"):
+    def __init__(self, path_to_zone_annotations: str = r"D:\pythonProjects\AstuteBackend\tracker\zones.json"):
         self.model = YOLO("yolov8n.pt")
         self.track_history = []
         # fixme need to be annotated
@@ -19,25 +19,38 @@ class YoloTracker(Tracker):
             zones_json = json.load(file)
             self.zones = {shape["label"]: np.array(shape["points"], dtype=np.int32) for shape in zones_json["shapes"]}
 
-    async def predict(self, frames, destination_coords: tuple[int]) -> tuple[float, tuple[int, int]]:
+    def predict(self, frame, destination_coords: tuple[int]) -> tuple[float, tuple[int, int]]:
         # fixme get only first video stream
-        frame = frames[0]
-        results = self.model.track(frame, persist=True, classes=[0])
-        boxes = results[0].boxes.xywh.cpu()
-        track_ids: list[int] = results[0].boxes.id.int().cpu().tolist()
+        results = self.model.predict(frame, classes=[0], verbose=False)
+        if not results:
+            return 0, (-1, -1)
+        boxes = results[0].boxes.xywh.cpu().tolist()
         # fixme predict without registration - track only the first one
-        index_to_track = track_ids.index(1)
-        box = boxes[index_to_track]
-        direction = await self.__estimate_non_warped_direction(box)
-        current_zone_name, next_zone_name = await self.__estimate_neigborhood_zones(box, direction=direction)
-        x_current, y_current = map(int, current_zone_name.split("_"))
-        x_next, y_next = map(int, next_zone_name.split("_"))
+        if not boxes:
+            return 0, (-1, -1)
+        box = boxes[0]
+        direction = self.__estimate_non_warped_direction(box)
+        current_zone_name, next_zone_name = self.__estimate_neigborhood_zones(box, direction=direction)
+        if current_zone_name is None:
+            return 0, (-2, -2)
+        x_current, y_current = map(int, current_zone_name.split(","))
+        if next_zone_name is None:
+            return 0, (x_current, y_current)
+        x_next, y_next = map(int, next_zone_name.split(","))
         dx = x_next - x_current
         dy = y_next - y_current
-        degrees = np.arctan2(dy, dx)
-        return degrees, (x_current, y_current)
 
-    async def __estimate_non_warped_direction(self, box):
+        x = destination_coords[0] - x_next
+        y = destination_coords[1] - y_next
+
+        x_sum = dx+x
+        y_sum = dy+y
+
+        angle_to_rotate = np.rad2deg(np.arctan2(y_sum, x_sum))
+        print("YOLO", x_current, y_current, "Next", x_next, y_next, "Angle", angle_to_rotate)
+        return int(angle_to_rotate), (x_current, y_current)
+
+    def __estimate_non_warped_direction(self, box):
         x, y, w, h = box
         x_up_left = x
         y_up_left = y - h / 2
@@ -50,12 +63,12 @@ class YoloTracker(Tracker):
             velocity = np.sqrt(dx**2 + dy**2)
             std_velocity_error = 1.3
             if velocity < std_velocity_error:
-                return
+                return 0
             direction = np.arctan2(dy, dx)
             return direction
-        return
+        return 0
 
-    async def __estimate_neigborhood_zones(self, box, direction):
+    def __estimate_neigborhood_zones(self, box, direction):
         x, y, w, h = box
         current_zone = None
         next_zone = None

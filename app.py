@@ -7,7 +7,7 @@ import uvicorn
 from fastapi import FastAPI, WebSocket
 from tracker.dummy import DummyTracker
 from tracker.yolo import YoloTracker
-from recommendator.dummy import DummyRecommendator
+from recommender.dummy import DummyRecommender
 from graph import Graph
 import json
 import asyncio
@@ -34,7 +34,7 @@ async def websocket_endpoint(websocket: WebSocket):
     connected_clients[client_id] = websocket
     # fixme destination_zone_id
     tracker = YoloTracker()
-    recommendator = DummyRecommendator()
+    recommendator = DummyRecommender()
     graph = Graph()
     goods = parse_goods()
     real_goods = [3, 5]
@@ -44,15 +44,21 @@ async def websocket_endpoint(websocket: WebSocket):
     destination_index = 0
     destination = way[0]
     destination_coords = graph.coords[way[0]]
+    old_direction = 0
+    url = urls[0]
+    cap = cv2.VideoCapture(url)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     try:
-        i = 0
         while True:
-            await asyncio.sleep(1)
-            i += 1
-            frames = get_frames(urls)
-            direction, man_coordinate = tracker.predict(frames, destination_coords=destination_coords)
-            if i==20:
-                await send_message(client_id, json.dumps({"type": "NEAR_RECOMMENDED", "content": f"Рядом с Вами сыр"}))
+            await asyncio.sleep(0.2)
+            sucess_flag, frame = cap.read()
+            if not sucess_flag:
+                break
+            direction, man_coordinate = tracker.predict(frame, destination_coords=destination_coords)
+            cv2.imshow("frames", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            print(man_coordinate)
             if (man_coordinate==graph.coords[destination]):
                 if destination in real_goods:
                     print(f"NEAR_REAL {goods[str(destination)]}")
@@ -62,9 +68,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     await send_message(client_id, json.dumps({"type": "NEAR_RECOMMENDED", "content": f"Рядом с Вами {goods[str(destination)]}"}))
                 destination_index+=1
                 destination = way[destination_index]
-            if direction:
+                destination_coords = graph.coords[destination]
+            if direction-old_direction:
                 # Detect anomalies and notify clients
-                print(str(direction))
+                old_direction = direction
                 await send_message(client_id, json.dumps({"type": "DIRECTION", "content": str(direction)}))
     except Exception as e:
         print(e)
@@ -95,25 +102,16 @@ def register():
     client_id = get_id()
     return {"id": client_id}
 
-
-def get_frames(urls: list[str]):
-    frames = []
-    for url in urls:
-        frames.append(read_video_frame(url))
-    return frames
-
-
-def read_video_frame(url):
-    # Create a VideoCapture object with the URL of the video stream
-    cap = cv2.VideoCapture(url)
-    while True:
-        # Read the next frame from the video stream
-        ret, frame = cap.read()
-        if not ret:
-            # Return None if there's no more frames or an error occurred
-            return None
-        return frame
-
+@app.get("/goodList")
+def register():
+    goods = []
+    with open("goods.txt", encoding="utf-8") as f:
+        for line in f:
+            s = line.split()
+            goods.append(s[1])
+    goods.pop(0)
+    print(goods)
+    return goods
 
 def get_urls() -> list[str]:
     with open(CONST_cam_ips) as file:
